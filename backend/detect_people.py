@@ -1,247 +1,196 @@
-from ultralytics import YOLO
 import cv2
+from ultralytics import YOLO
+from pathlib import Path
 
-# ==============================
-# 1. LOAD YOLO MODEL
-# ==============================
+# ==========================================
+# 1. CONFIGURATION
+# ==========================================
 
-model = YOLO("yolo26n.pt")
+# YOLO model is stored in the main project folder
+MODEL_PATH = Path(__file__).resolve().parent.parent / "yolo26n.pt"
 
+CAMERA_INDEX = 0
+CONFIDENCE = 0.35
 
-# ==============================
-# 2. CAMERA 1
-# ==============================
+print("=" * 45)
+print("       AI CROWD MONITORING SYSTEM")
+print("=" * 45)
 
-camera_source = 0
+# ==========================================
+# 2. LOAD YOLO MODEL
+# ==========================================
 
-cap = cv2.VideoCapture(camera_source, cv2.CAP_DSHOW)
+if not MODEL_PATH.exists():
+    print(f"ERROR: Model not found at: {MODEL_PATH}")
+    raise SystemExit(1)
 
-if not cap.isOpened():
-    print("ERROR: Camera not found")
-    exit()
+print("Loading YOLO model...")
 
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+model = YOLO(str(MODEL_PATH))
 
+print("YOLO model loaded successfully!")
 
-# ==============================
-# 3. ZONE SETTINGS
-# ==============================
+# ==========================================
+# 3. OPEN CAMERA
+# ==========================================
 
-zone_name = "SAMADHI MANDIR"
+camera = cv2.VideoCapture(CAMERA_INDEX, cv2.CAP_DSHOW)
 
-ZONE_X1 = 100
-ZONE_Y1 = 100
-ZONE_X2 = 900
-ZONE_Y2 = 650
+if not camera.isOpened():
+    camera.release()
+    camera = cv2.VideoCapture(CAMERA_INDEX)
 
+if not camera.isOpened():
+    print("ERROR: Cannot open camera.")
+    raise SystemExit(1)
 
-# ==============================
-# 4. MAIN LOOP
-# ==============================
+# Set camera resolution
+camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
-while True:
+print("Camera opened successfully!")
+print("Press Q to stop detection.")
 
-    success, frame = cap.read()
+# ==========================================
+# 4. CROWD LEVEL FUNCTION
+# ==========================================
 
-    if not success:
-        print("ERROR: Cannot read frame")
-        break
-
-
-    # ==============================
-    # 5. YOLO + BYTETRACK
-    # ==============================
-
-    results = model.track(
-        source=frame,
-        persist=True,
-        tracker="bytetrack.yaml",
-        conf=0.25,
-        iou=0.45,
-        classes=[0],
-        verbose=False
-    )
-
-    result = results[0]
-
-
-    # ==============================
-    # 6. COUNT PEOPLE INSIDE ZONE
-    # ==============================
-
-    people_count = 0
-
-    if result.boxes is not None:
-
-        for box in result.boxes.xyxy:
-
-            x1, y1, x2, y2 = map(int, box)
-
-            # Find center of person
-            center_x = (x1 + x2) // 2
-            center_y = (y1 + y2) // 2
-
-            # Check if center is inside zone
-            if (
-                ZONE_X1 <= center_x <= ZONE_X2
-                and
-                ZONE_Y1 <= center_y <= ZONE_Y2
-            ):
-                people_count += 1
-
-
-    # ==============================
-    # 7. CROWD LEVEL
-    # ==============================
-
-    if people_count == 0:
-
-        crowd_level = "NO PEOPLE"
-        crowd_color = (255, 255, 255)
-
-    elif people_count <= 500:
-
-        crowd_level = "LOW"
-        crowd_color = (0, 255, 0)
-
-    elif people_count <= 1000:
-
-        crowd_level = "MEDIUM"
-        crowd_color = (0, 255, 255)
-
+def get_crowd_level(count):
+    if count <= 500:
+        return "LOW"
+    elif count <= 1000:
+        return "MEDIUM"
     else:
-
-        crowd_level = "HIGH"
-        crowd_color = (0, 0, 255)
+        return "HIGH"
 
 
-    # ==============================
-    # 8. DRAW YOLO DETECTIONS
-    # ==============================
+# ==========================================
+# 5. PEOPLE DETECTION AND TRACKING
+# ==========================================
 
-    annotated_frame = result.plot()
+try:
+    while True:
 
+        # Read camera frame
+        success, frame = camera.read()
 
-    # ==============================
-    # 9. DRAW MONITORING ZONE
-    # ==============================
+        if not success:
+            print("ERROR: Cannot read camera frame.")
+            break
 
-    cv2.rectangle(
-        annotated_frame,
-        (ZONE_X1, ZONE_Y1),
-        (ZONE_X2, ZONE_Y2),
-        (255, 0, 0),
-        3
-    )
+        # Detect and track people
+        results = model.track(
+            source=frame,
+            persist=True,
+            tracker="bytetrack.yaml",
+            classes=[0],       # Class 0 = person
+            conf=CONFIDENCE,
+            iou=0.45,
+            verbose=False
+        )
 
-    cv2.putText(
-        annotated_frame,
-        zone_name,
-        (ZONE_X1, ZONE_Y1 - 10),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.8,
-        (255, 0, 0),
-        2
-    )
+        person_count = 0
 
+        # Process detection results
+        for result in results:
 
-    # ==============================
-    # 10. DISPLAY PEOPLE COUNT
-    # ==============================
+            if result.boxes is None:
+                continue
 
-    cv2.putText(
-        annotated_frame,
-        f"PEOPLE: {people_count}",
-        (30, 50),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        1,
-        (0, 255, 0),
-        3
-    )
+            for box in result.boxes:
 
+                # Count detected people in the current frame
+                person_count += 1
 
-    # ==============================
-    # 11. CROWD LEVEL BOX
-    # ==============================
+                # Get bounding box coordinates
+                x1, y1, x2, y2 = map(
+                    int,
+                    box.xyxy[0].tolist()
+                )
 
-    frame_height, frame_width = annotated_frame.shape[:2]
+                # Get tracking ID
+                track_id = None
 
-    box_width = 300
-    box_height = 120
+                if box.id is not None:
+                    track_id = int(box.id[0].item())
 
-    box_x1 = frame_width - box_width - 20
-    box_y1 = 20
+                # Draw rectangle around person
+                cv2.rectangle(
+                    frame,
+                    (x1, y1),
+                    (x2, y2),
+                    (0, 255, 0),
+                    2
+                )
 
-    box_x2 = frame_width - 20
-    box_y2 = box_y1 + box_height
+                # Display ID
+                if track_id is not None:
+                    label = f"Person ID: {track_id}"
+                else:
+                    label = "Person"
 
+                cv2.putText(
+                    frame,
+                    label,
+                    (x1, max(y1 - 10, 20)),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6,
+                    (0, 255, 0),
+                    2
+                )
 
-    # Black background
-    cv2.rectangle(
-        annotated_frame,
-        (box_x1, box_y1),
-        (box_x2, box_y2),
-        (0, 0, 0),
-        -1
-    )
+        # ==========================================
+        # 6. CALCULATE CROWD LEVEL
+        # ==========================================
 
+        crowd_level = get_crowd_level(person_count)
 
-    # Border
-    cv2.rectangle(
-        annotated_frame,
-        (box_x1, box_y1),
-        (box_x2, box_y2),
-        crowd_color,
-        3
-    )
+        # ==========================================
+        # 7. DISPLAY COUNT AND CROWD LEVEL
+        # ==========================================
 
+        cv2.putText(
+            frame,
+            f"People Detected: {person_count}",
+            (20, 40),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.9,
+            (255, 255, 255),
+            2
+        )
 
-    # CROWD LEVEL text
-    cv2.putText(
-        annotated_frame,
-        "CROWD LEVEL",
-        (box_x1 + 15, box_y1 + 35),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.7,
-        (255, 255, 255),
-        2
-    )
+        cv2.putText(
+            frame,
+            f"Crowd Level: {crowd_level}",
+            (20, 80),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.9,
+            (0, 255, 255),
+            2
+        )
 
+        # Display camera window
+        cv2.imshow(
+            "AI Crowd Monitoring System",
+            frame
+        )
 
-    # Crowd level
-    cv2.putText(
-        annotated_frame,
-        crowd_level,
-        (box_x1 + 15, box_y1 + 85),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        1,
-        crowd_color,
-        3
-    )
+        # Print count in terminal
+        print(
+            f"\rPeople: {person_count} | "
+            f"Crowd Level: {crowd_level}   ",
+            end=""
+        )
 
+        # Press Q to exit
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            break
 
-    # ==============================
-    # 12. SHOW CAMERA
-    # ==============================
+except KeyboardInterrupt:
+    print("\nDetection stopped by user.")
 
-    cv2.imshow(
-        "Temple People Counting System - Camera 1",
-        annotated_frame
-    )
-
-
-    # ==============================
-    # 13. PRESS Q TO EXIT
-    # ==============================
-
-    if cv2.waitKey(1) & 0xFF == ord("q"):
-        break
-
-
-# ==============================
-# 14. RELEASE CAMERA
-# ==============================
-
-cap.release()
-cv2.destroyAllWindows()
+finally:
+    camera.release()
+    cv2.destroyAllWindows()
+    print("\nCamera closed.")
+    print("Crowd monitoring stopped.")

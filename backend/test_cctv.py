@@ -1,25 +1,30 @@
 import cv2
 
-cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+camera = cv2.VideoCapture(0, cv2.CAP_DSHOW)
 
-if not cap.isOpened():
-    print("ERROR: Camera not found")
-    exit()
+if not camera.isOpened():
+    camera.release()
+    camera = cv2.VideoCapture(0)
 
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+if not camera.isOpened():
+    print("Cannot open camera")
+    raise SystemExit(1)
+
+print("Camera opened successfully!")
 
 while True:
-    success, frame = cap.read()
+    success, frame = camera.read()
 
     if not success:
-        print("Cannot read frame")
-        continue
+        print("Cannot read camera frame")
+        break
 
-    cv2.imshow("Camera Test", frame)
+    cv2.imshow("Crowd Monitoring System", frame)
 
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break
 
-cap.release()
+camera.release()
 cv2.destroyAllWindows()
+
+print("Camera closed")

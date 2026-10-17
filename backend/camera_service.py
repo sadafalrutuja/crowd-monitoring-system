@@ -1,123 +1,490 @@
-from ultralytics import YOLO
 import cv2
 import threading
 import time
+from pathlib import Path
+from ultralytics import YOLO
 
-# Load YOLO model
-model = YOLO("yolo26n.pt")
 
-# Open laptop webcam
-cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+# ==================================================
+# 1. CONFIGURATION
+# ==================================================
 
-# Crowd information shared with FastAPI
+MODEL_PATH = (
+    Path(__file__).resolve().parent.parent / "yolo26n.pt"
+)
+
+CAMERA_INDEX = 0
+
+CONFIDENCE = 0.25
+IOU_THRESHOLD = 0.50
+IMAGE_SIZE = 960
+
+FRAME_WIDTH = 1280
+FRAME_HEIGHT = 720
+
+WINDOW_NAME = "AI Crowd Monitoring System"
+
+
+# ==================================================
+# 2. SHARED VARIABLES
+# ==================================================
+
+camera = None
+model = None
+camera_thread = None
+
+stop_event = threading.Event()
+lock = threading.Lock()
+
+latest_frame = None
+
 crowd_data = {
-    "zone": "SAMADHI MANDIR",
+    "camera_status": "STOPPED",
     "people_count": 0,
-    "crowd_level": "NO PEOPLE"
+    "crowd_level": "LOW",
+    "tracked_people": [],
+    "last_updated": None,
+    "error": None
 }
 
-# Lock for safe data sharing
-data_lock = threading.Lock()
+
+# ==================================================
+# 3. CROWD LEVEL
+# ==================================================
+
+def get_crowd_level(count):
+
+    if count <= 500:
+        return "LOW"
+
+    elif count <= 1000:
+        return "MEDIUM"
+
+    else:
+        return "HIGH"
 
 
-def process_camera():
-    global crowd_data
+# ==================================================
+# 4. LOAD YOLO MODEL
+# ==================================================
 
-    while True:
+def load_model():
 
-        # Read webcam frame
-        success, frame = cap.read()
+    global model
 
-        if not success:
-            print("ERROR: Cannot read camera")
-            time.sleep(1)
-            continue
+    if model is not None:
+        return
 
-        # YOLO person detection + tracking
-        results = model.track(
-            source=frame,
-            persist=True,
-            tracker="bytetrack.yaml",
-            conf=0.50,
-            iou=0.45,
-            classes=[0],
-            verbose=False
+    if not MODEL_PATH.exists():
+        raise FileNotFoundError(
+            f"YOLO model not found: {MODEL_PATH}"
         )
 
-        result = results[0]
+    print("Loading YOLO model...")
 
-        # Count people
-        people_count = 0
+    model = YOLO(str(MODEL_PATH))
 
-        if result.boxes is not None:
-            people_count = len(result.boxes)
+    print("YOLO model loaded successfully!")
 
-        # Determine crowd level
-        if people_count == 0:
-            crowd_level = "NO PEOPLE"
 
-        elif people_count <= 500:
-            crowd_level = "LOW"
+# ==================================================
+# 5. OPEN CAMERA
+# ==================================================
 
-        elif people_count <= 1000:
-            crowd_level = "MEDIUM"
+def open_camera():
 
-        else:
-            crowd_level = "HIGH"
+    cam = cv2.VideoCapture(
+        CAMERA_INDEX,
+        cv2.CAP_DSHOW
+    )
 
-        # Update data for FastAPI
-        with data_lock:
-            crowd_data["people_count"] = people_count
-            crowd_data["crowd_level"] = crowd_level
+    if not cam.isOpened():
 
-        # Display detection on camera
-        annotated_frame = result.plot()
+        cam.release()
 
-        cv2.putText(
-            annotated_frame,
-            f"PEOPLE: {people_count}",
-            (30, 50),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            1,
-            (0, 255, 0),
-            3
+        cam = cv2.VideoCapture(CAMERA_INDEX)
+
+    if not cam.isOpened():
+
+        cam.release()
+
+        raise RuntimeError(
+            "Cannot open camera. Check camera permissions."
         )
 
-        cv2.putText(
-            annotated_frame,
-            f"CROWD: {crowd_level}",
-            (30, 90),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            1,
-            (0, 255, 255),
-            3
-        )
+    cam.set(
+        cv2.CAP_PROP_FRAME_WIDTH,
+        FRAME_WIDTH
+    )
 
-        # Show live camera
-        cv2.imshow(
-            "Temple Crowd Monitoring - Live",
-            annotated_frame
-        )
+    cam.set(
+        cv2.CAP_PROP_FRAME_HEIGHT,
+        FRAME_HEIGHT
+    )
 
-        # Press Q to close camera
-        if cv2.waitKey(1) & 0xFF == ord("q"):
-            break
+    return cam
 
-    cap.release()
-    cv2.destroyAllWindows()
 
+# ==================================================
+# 6. CAMERA DETECTION WORKER
+# ==================================================
+
+def camera_worker():
+
+    global camera
+    global latest_frame
+
+    try:
+
+        load_model()
+
+        camera = open_camera()
+
+        with lock:
+
+            crowd_data["camera_status"] = "RUNNING"
+            crowd_data["error"] = None
+
+        print("Camera started successfully!")
+
+        while not stop_event.is_set():
+
+            success, frame = camera.read()
+
+            if not success:
+
+                with lock:
+                    crowd_data["error"] = (
+                        "Cannot read camera frame"
+                    )
+
+                time.sleep(0.1)
+
+                continue
+
+            # ------------------------------------------
+            # YOLO DETECTION AND BYTETRACK
+            # ------------------------------------------
+
+            results = model.track(
+                source=frame,
+                persist=True,
+                tracker="bytetrack.yaml",
+                classes=[0],
+                conf=CONFIDENCE,
+                iou=IOU_THRESHOLD,
+                imgsz=IMAGE_SIZE,
+                verbose=False
+            )
+
+            person_count = 0
+            tracked_people = []
+
+            # ------------------------------------------
+            # PROCESS DETECTIONS
+            # ------------------------------------------
+
+            for result in results:
+
+                if result.boxes is None:
+                    continue
+
+                for box in result.boxes:
+
+                    person_count += 1
+
+                    coordinates = (
+                        box.xyxy[0]
+                        .cpu()
+                        .tolist()
+                    )
+
+                    x1, y1, x2, y2 = map(
+                        int,
+                        coordinates
+                    )
+
+                    track_id = None
+
+                    if box.id is not None:
+
+                        track_id = int(
+                            box.id[0].item()
+                        )
+
+                    confidence = float(
+                        box.conf[0].item()
+                    )
+
+                    # Draw bounding box
+                    cv2.rectangle(
+                        frame,
+                        (x1, y1),
+                        (x2, y2),
+                        (0, 255, 0),
+                        2
+                    )
+
+                    # Display ID and confidence
+                    if track_id is not None:
+
+                        label = (
+                            f"ID: {track_id} "
+                            f"Conf: {confidence:.2f}"
+                        )
+
+                        tracked_people.append({
+                            "track_id": track_id,
+                            "confidence": round(
+                                confidence, 3
+                            ),
+                            "box": [
+                                x1, y1, x2, y2
+                            ]
+                        })
+
+                    else:
+
+                        label = (
+                            f"Person {confidence:.2f}"
+                        )
+
+                        tracked_people.append({
+                            "track_id": None,
+                            "confidence": round(
+                                confidence, 3
+                            ),
+                            "box": [
+                                x1, y1, x2, y2
+                            ]
+                        })
+
+                    cv2.putText(
+                        frame,
+                        label,
+                        (x1, max(y1 - 10, 20)),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.55,
+                        (0, 255, 0),
+                        2
+                    )
+
+            # ------------------------------------------
+            # CALCULATE CROWD LEVEL
+            # ------------------------------------------
+
+            crowd_level = get_crowd_level(
+                person_count
+            )
+
+            # ------------------------------------------
+            # DISPLAY COUNT
+            # ------------------------------------------
+
+            cv2.putText(
+                frame,
+                f"People Detected: {person_count}",
+                (20, 40),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.9,
+                (255, 255, 255),
+                2
+            )
+
+            cv2.putText(
+                frame,
+                f"Crowd Level: {crowd_level}",
+                (20, 80),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.9,
+                (0, 255, 255),
+                2
+            )
+
+            # ------------------------------------------
+            # UPDATE SHARED DATA
+            # ------------------------------------------
+
+            with lock:
+
+                crowd_data["people_count"] = (
+                    person_count
+                )
+
+                crowd_data["crowd_level"] = (
+                    crowd_level
+                )
+
+                crowd_data["tracked_people"] = (
+                    tracked_people
+                )
+
+                crowd_data["last_updated"] = (
+                    time.strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    )
+                )
+
+                crowd_data["error"] = None
+
+                latest_frame = frame.copy()
+
+            # ------------------------------------------
+            # SHOW CAMERA WINDOW
+            # ------------------------------------------
+
+            cv2.imshow(
+                WINDOW_NAME,
+                frame
+            )
+
+            # Press Q to stop camera
+            if cv2.waitKey(1) & 0xFF == ord("q"):
+
+                stop_event.set()
+
+                break
+
+    except Exception as error:
+
+        with lock:
+
+            crowd_data["error"] = str(error)
+            crowd_data["camera_status"] = "ERROR"
+
+        print("Camera error:", error)
+
+    finally:
+
+        if camera is not None:
+
+            camera.release()
+
+            camera = None
+
+        cv2.destroyAllWindows()
+
+        with lock:
+
+            if crowd_data["camera_status"] != "ERROR":
+
+                crowd_data["camera_status"] = "STOPPED"
+
+        print("Camera stopped.")
+
+
+# ==================================================
+# 7. START CAMERA
+# ==================================================
 
 def start_camera():
 
+    global camera_thread
+
+    if (
+        camera_thread is not None
+        and camera_thread.is_alive()
+    ):
+
+        return {
+            "message": "Camera is already running",
+            "camera_status": "RUNNING"
+        }
+
+    stop_event.clear()
+
+    with lock:
+
+        crowd_data["camera_status"] = "STARTING"
+        crowd_data["error"] = None
+
     camera_thread = threading.Thread(
-        target=process_camera,
+        target=camera_worker,
         daemon=True
     )
 
     camera_thread.start()
 
+    return {
+        "message": "Camera starting",
+        "camera_status": "STARTING"
+    }
+
+
+# ==================================================
+# 8. STOP CAMERA
+# ==================================================
+
+def stop_camera():
+
+    global camera_thread
+
+    stop_event.set()
+
+    if (
+        camera_thread is not None
+        and camera_thread.is_alive()
+    ):
+
+        camera_thread.join(timeout=5)
+
+    with lock:
+
+        return {
+            "message": "Camera stop requested",
+            "camera_status": (
+                crowd_data["camera_status"]
+            )
+        }
+
+
+# ==================================================
+# 9. GET CROWD DATA
+# ==================================================
 
 def get_crowd_data():
 
-    with data_lock:
-        return crowd_data.copy()
+    with lock:
+
+        return {
+            "camera_status": (
+                crowd_data["camera_status"]
+            ),
+
+            "people_count": (
+                crowd_data["people_count"]
+            ),
+
+            "crowd_level": (
+                crowd_data["crowd_level"]
+            ),
+
+            "tracked_people": [
+                person.copy()
+                for person in crowd_data[
+                    "tracked_people"
+                ]
+            ],
+
+            "last_updated": (
+                crowd_data["last_updated"]
+            ),
+
+            "error": (
+                crowd_data["error"]
+            )
+        }
+
+
+# ==================================================
+# 10. GET LATEST CAMERA FRAME
+# ==================================================
+
+def get_camera_frame():
+
+    with lock:
+
+        if latest_frame is None:
+            return None
+
+        return latest_frame.copy()
