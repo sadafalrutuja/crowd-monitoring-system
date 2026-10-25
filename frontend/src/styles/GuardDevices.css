@@ -1,0 +1,93 @@
+.device-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 23px;
+  box-shadow: var(--shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.device-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 25px rgba(110, 77, 25, 0.1);
+}
+
+.device-icon {
+  width: 55px;
+  height: 55px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #fff0c5, #ffe2a0);
+  font-size: 27px;
+}
+
+.device-card .information-heading {
+  align-items: center;
+}
+
+.device-card .information-row {
+  padding: 12px 0;
+}
+
+.device-card .battery-track {
+  height: 9px;
+  margin-top: 10px;
+}
+
+.device-card .battery-fill {
+  transition: width 0.4s ease;
+}
+
+.device-battery-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 19px;
+  margin-bottom: 9px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.device-battery-label strong {
+  color: var(--brown);
+}
+
+.device-connected {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  background: #e3f7eb;
+  color: #278451;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.device-connected::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  background: #278451;
+  border-radius: 50%;
+}
+
+.device-disconnected {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 9px;
+  background: #ffe9e5;
+  color: #c0392b;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+@media (max-width: 600px) {
+  .device-card {
+    padding: 17px;
+  }
+}

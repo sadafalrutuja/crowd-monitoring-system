@@ -1,0 +1,184 @@
+.zone-details-page {
+  width: 100%;
+}
+
+.zone-details-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 27px;
+  margin-bottom: 23px;
+  background: linear-gradient(120deg, #fff0c4, #ffdfa0);
+  border: 1px solid #f2dfb5;
+  border-radius: 22px;
+}
+
+.zone-details-icon {
+  width: 75px;
+  height: 75px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.65);
+  font-size: 38px;
+}
+
+.zone-details-banner h1 {
+  color: #634116;
+  font-size: 26px;
+  margin-bottom: 7px;
+}
+
+.zone-details-banner p {
+  color: #98713a;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.details-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 17px;
+  margin-bottom: 23px;
+}
+
+.detail-stat {
+  padding: 21px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 17px;
+  box-shadow: var(--shadow);
+}
+
+.detail-stat span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.detail-stat h2 {
+  color: var(--brown);
+  font-size: 27px;
+  margin-top: 9px;
+}
+
+.details-two-column {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.guard-profile {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin-bottom: 18px;
+}
+
+.guard-avatar {
+  width: 49px;
+  height: 49px;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 15px;
+  background: #fff0c5;
+  color: #8d5e15;
+  font-size: 23px;
+}
+
+.guard-profile h3 {
+  font-size: 14px;
+  color: var(--brown);
+}
+
+.guard-profile p {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.device-id-box {
+  display: inline-block;
+  padding: 8px 12px;
+  margin-bottom: 15px;
+  border-radius: 9px;
+  background: #fff4d9;
+  color: #8a5b14;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.battery-track {
+  height: 9px;
+  margin: 10px 0;
+}
+
+.battery-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #5ec889, #24854d);
+  border-radius: 20px;
+}
+
+.capacity-card {
+  margin-top: 20px;
+  padding: 23px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+}
+
+.capacity-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 13px;
+  color: var(--brown);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.capacity-progress {
+  height: 12px;
+  background: #f1eade;
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.capacity-progress .progress-fill {
+  height: 100%;
+}
+
+.device-note {
+  padding: 12px;
+  margin-top: 15px;
+  border-radius: 10px;
+  background: #fff8e9;
+  color: #8c6a32;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+@media (max-width: 750px) {
+  .details-two-column {
+    grid-template-columns: 1fr;
+  }
+
+  .details-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .zone-details-banner {
+    padding: 20px;
+  }
+
+  .zone-details-banner h1 {
+    font-size: 22px;
+  }
+}

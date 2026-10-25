@@ -1,0 +1,45 @@
+.guard-list-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.guard-list-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 25px rgba(110, 77, 25, 0.1);
+}
+
+.guard-list-card .guard-profile {
+  padding-bottom: 17px;
+  border-bottom: 1px solid #f4eadb;
+}
+
+.guard-list-card .guard-avatar {
+  background: linear-gradient(145deg, #fff0c2, #ffe0a0);
+}
+
+.guard-list-card .information-row {
+  padding: 12px 0;
+}
+
+.guard-list-card .status-badge.low {
+  display: inline-flex;
+}
+
+.guard-list-card .zone-details-button {
+  margin-top: 15px;
+}
+
+.guard-role {
+  display: inline-block;
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: #fff3d5;
+  color: #95621a;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+@media (max-width: 600px) {
+  .guard-list-card {
+    padding: 17px;
+  }
+}
