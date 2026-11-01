@@ -1,29 +1,174 @@
+// // import { Link } from "react-router-dom";
+// // import { getCrowdStatus, getOccupancy } from "../data/templeData";
+
+// // function ZoneCard({ zone }) {
+// //   const status = getCrowdStatus(zone);
+// //   const percentage = getOccupancy(zone);
+
+// //   return (
+// //     <article className="zone-card">
+// //       <div className="zone-card-top">
+// //         <div className="zone-icon">{zone.icon}</div>
+
+// //         <span className={`status-badge ${status.toLowerCase()}`}>
+// //           {status} Crowd
+// //         </span>
+// //       </div>
+
+// //       <h3>{zone.name}</h3>
+
+// //       <p className="camera-label">
+// //         Camera: {zone.cameraId}
+// //       </p>
+
+// //       <div className="people-row">
+// //         <div>
+// //           <h2>{zone.people}</h2>
+// //           <span>Estimated people</span>
+// //         </div>
+
+// //         <div className="percentage-box">
+// //           <strong>{percentage}%</strong>
+// //           <span>Capacity used</span>
+// //         </div>
+// //       </div>
+
+// //       <div className="progress-track">
+// //         <div
+// //           className={`progress-fill ${status.toLowerCase()}`}
+// //           style={{ width: `${Math.min(percentage, 100)}%` }}
+// //         />
+// //       </div>
+
+// //       <div className="zone-card-footer">
+// //         <span>Guard: {zone.guard.name}</span>
+// //         <span>Device: {zone.device.id}</span>
+// //       </div>
+
+// //       <Link to={`/zones/${zone.id}`} className="zone-details-button">
+// //         View Area Details →
+// //       </Link>
+// //     </article>
+// //   );
+// // }
+
+// // export default ZoneCard;
+
+
+// import { Link } from "react-router-dom";
+// import { getCrowdStatus, getOccupancy } from "../data/templeData";
+
+// function ZoneCard({ zone }) {
+//   if (!zone) return null;
+
+//   const status = getCrowdStatus(zone);
+//   const percentage = getOccupancy(zone);
+
+//   return (
+//     <article className="zone-card">
+
+//       <div className="zone-card-top">
+//         <div className="zone-icon">
+//           {zone.icon || "📍"}
+//         </div>
+
+//         <span className={`status-badge ${status.toLowerCase()}`}>
+//           {status} Crowd
+//         </span>
+//       </div>
+
+//       <h3>{zone.name || "Unknown Zone"}</h3>
+
+//       <p className="camera-label">
+//         Camera: {zone.cameraId || "Not Assigned"}
+//       </p>
+
+//       <div className="people-row">
+//         <div>
+//           <h2>{zone.people ?? 0}</h2>
+//           <span>Estimated people</span>
+//         </div>
+
+//         <div className="percentage-box">
+//           <strong>{percentage}%</strong>
+//           <span>Capacity used</span>
+//         </div>
+//       </div>
+
+//       <div className="progress-track">
+//         <div
+//           className={`progress-fill ${status.toLowerCase()}`}
+//           style={{
+//             width: `${Math.min(percentage, 100)}%`
+//           }}
+//         />
+//       </div>
+
+//       <div className="zone-card-footer">
+//         <span>
+//           Guard: {zone.guard?.name || "Not Assigned"}
+//         </span>
+
+//         <span>
+//           Device: {zone.device?.id || "Not Assigned"}
+//         </span>
+//       </div>
+
+//       <Link
+//         to={`/zones/${zone.id}`}
+//         className="zone-details-button"
+//       >
+//         View Area Details →
+//       </Link>
+
+//     </article>
+//   );
+// }
+
+// export default ZoneCard;
+
 import { Link } from "react-router-dom";
-import { getCrowdStatus, getOccupancy } from "../data/templeData";
 
 function ZoneCard({ zone }) {
-  const status = getCrowdStatus(zone);
-  const percentage = getOccupancy(zone);
+  if (!zone) return null;
+
+  const people = Number(zone.people || 0);
+  const capacity = Number(zone.capacity || 0);
+
+  const percentage =
+    capacity > 0
+      ? Math.round((people / capacity) * 100)
+      : 0;
+
+  const status =
+    percentage >= 70
+      ? "High"
+      : percentage >= 40
+        ? "Medium"
+        : "Low";
 
   return (
     <article className="zone-card">
+
       <div className="zone-card-top">
-        <div className="zone-icon">{zone.icon}</div>
+        <div className="zone-icon">
+          {zone.icon || "📍"}
+        </div>
 
         <span className={`status-badge ${status.toLowerCase()}`}>
           {status} Crowd
         </span>
       </div>
 
-      <h3>{zone.name}</h3>
+      <h3>{zone.name || "Unknown Zone"}</h3>
 
       <p className="camera-label">
-        Camera: {zone.cameraId}
+        Camera: {zone.cameraId || "Not Assigned"}
       </p>
 
       <div className="people-row">
         <div>
-          <h2>{zone.people}</h2>
+          <h2>{people}</h2>
           <span>Estimated people</span>
         </div>
 
@@ -36,18 +181,29 @@ function ZoneCard({ zone }) {
       <div className="progress-track">
         <div
           className={`progress-fill ${status.toLowerCase()}`}
-          style={{ width: `${Math.min(percentage, 100)}%` }}
+          style={{
+            width: `${Math.min(percentage, 100)}%`,
+          }}
         />
       </div>
 
       <div className="zone-card-footer">
-        <span>Guard: {zone.guard.name}</span>
-        <span>Device: {zone.device.id}</span>
+        <span>
+          Guard: {zone.guard?.name || "Not Assigned"}
+        </span>
+
+        <span>
+          Device: {zone.device?.id || "Not Assigned"}
+        </span>
       </div>
 
-      <Link to={`/zones/${zone.id}`} className="zone-details-button">
+      <Link
+        to={`/zones/${zone.id}`}
+        className="zone-details-button"
+      >
         View Area Details →
       </Link>
+
     </article>
   );
 }
