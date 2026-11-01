@@ -1,56 +1,43 @@
 import cv2
 import threading
-import time
 from pathlib import Path
 from ultralytics import YOLO
 
 
-# ==================================================
-# 1. CONFIGURATION
-# ==================================================
+# ---------------- CONFIGURATION ----------------
 
-MODEL_PATH = (
-    Path(__file__).resolve().parent.parent / "yolo26n.pt"
-)
+ZONE_NAME = "SAMADHI MANDIR"
 
-CAMERA_INDEX = 0
+MODEL_PATH = Path(__file__).resolve().parent / "yolo26n.pt"
 
-CONFIDENCE = 0.25
-IOU_THRESHOLD = 0.50
-IMAGE_SIZE = 960
+# Camera 1 is tried first because it worked in your camera test.
+CAMERA_INDEXES = [1, 0]
 
-FRAME_WIDTH = 1280
-FRAME_HEIGHT = 720
-
-WINDOW_NAME = "AI Crowd Monitoring System"
+CONFIDENCE = 0.4
 
 
-# ==================================================
-# 2. SHARED VARIABLES
-# ==================================================
+# ---------------- GLOBAL VARIABLES ----------------
 
 camera = None
 model = None
-camera_thread = None
 
-stop_event = threading.Event()
-lock = threading.Lock()
+running = False
 
 latest_frame = None
+camera_thread = None
+
+lock = threading.Lock()
+
 
 crowd_data = {
-    "camera_status": "STOPPED",
+    "zone": ZONE_NAME,
     "people_count": 0,
     "crowd_level": "LOW",
-    "tracked_people": [],
-    "last_updated": None,
-    "error": None
+    "status": "STOPPED"
 }
 
 
-# ==================================================
-# 3. CROWD LEVEL
-# ==================================================
+# ---------------- CROWD LEVEL ----------------
 
 def get_crowd_level(count):
 
@@ -64,297 +51,158 @@ def get_crowd_level(count):
         return "HIGH"
 
 
-# ==================================================
-# 4. LOAD YOLO MODEL
-# ==================================================
+# ---------------- LOAD YOLO MODEL ----------------
 
 def load_model():
 
     global model
 
-    if model is not None:
-        return
+    if model is None:
 
-    if not MODEL_PATH.exists():
-        raise FileNotFoundError(
-            f"YOLO model not found: {MODEL_PATH}"
-        )
+        if not MODEL_PATH.exists():
 
-    print("Loading YOLO model...")
+            raise FileNotFoundError(
+                f"YOLO model not found: {MODEL_PATH}"
+            )
 
-    model = YOLO(str(MODEL_PATH))
+        model = YOLO(str(MODEL_PATH))
 
-    print("YOLO model loaded successfully!")
+    return model
 
 
-# ==================================================
-# 5. OPEN CAMERA
-# ==================================================
-
-def open_camera():
-
-    cam = cv2.VideoCapture(
-        CAMERA_INDEX,
-        cv2.CAP_DSHOW
-    )
-
-    if not cam.isOpened():
-
-        cam.release()
-
-        cam = cv2.VideoCapture(CAMERA_INDEX)
-
-    if not cam.isOpened():
-
-        cam.release()
-
-        raise RuntimeError(
-            "Cannot open camera. Check camera permissions."
-        )
-
-    cam.set(
-        cv2.CAP_PROP_FRAME_WIDTH,
-        FRAME_WIDTH
-    )
-
-    cam.set(
-        cv2.CAP_PROP_FRAME_HEIGHT,
-        FRAME_HEIGHT
-    )
-
-    return cam
-
-
-# ==================================================
-# 6. CAMERA DETECTION WORKER
-# ==================================================
+# ---------------- CAMERA WORKER ----------------
 
 def camera_worker():
 
-    global camera
-    global latest_frame
+    global running, camera, latest_frame, crowd_data
 
     try:
 
-        load_model()
+        detector = load_model()
 
-        camera = open_camera()
+        while running:
 
-        with lock:
+            current_camera = camera
 
-            crowd_data["camera_status"] = "RUNNING"
-            crowd_data["error"] = None
+            if current_camera is None:
+                break
 
-        print("Camera started successfully!")
-
-        while not stop_event.is_set():
-
-            success, frame = camera.read()
+            success, frame = current_camera.read()
 
             if not success:
 
                 with lock:
+
+                    crowd_data["status"] = "CAMERA_ERROR"
+
                     crowd_data["error"] = (
-                        "Cannot read camera frame"
+                        "Camera opened but could not read a frame."
                     )
 
-                time.sleep(0.1)
+                break
 
-                continue
+            # YOLO + BYTETRACK DETECTION
 
-            # ------------------------------------------
-            # YOLO DETECTION AND BYTETRACK
-            # ------------------------------------------
+            results = detector.track(
 
-            results = model.track(
-                source=frame,
+                frame,
+
                 persist=True,
+
                 tracker="bytetrack.yaml",
+
                 classes=[0],
+
                 conf=CONFIDENCE,
-                iou=IOU_THRESHOLD,
-                imgsz=IMAGE_SIZE,
+
+                iou=0.45,
+
                 verbose=False
             )
 
-            person_count = 0
-            tracked_people = []
+            # COUNT CURRENTLY DETECTED PEOPLE
 
-            # ------------------------------------------
-            # PROCESS DETECTIONS
-            # ------------------------------------------
+            people_count = 0
 
-            for result in results:
+            if results and results[0].boxes is not None:
 
-                if result.boxes is None:
-                    continue
+                people_count = len(results[0].boxes)
 
-                for box in result.boxes:
+            # CROWD LEVEL
 
-                    person_count += 1
+            crowd_level = get_crowd_level(people_count)
 
-                    coordinates = (
-                        box.xyxy[0]
-                        .cpu()
-                        .tolist()
-                    )
+            # DRAW DETECTION BOXES
 
-                    x1, y1, x2, y2 = map(
-                        int,
-                        coordinates
-                    )
+            annotated_frame = results[0].plot()
 
-                    track_id = None
-
-                    if box.id is not None:
-
-                        track_id = int(
-                            box.id[0].item()
-                        )
-
-                    confidence = float(
-                        box.conf[0].item()
-                    )
-
-                    # Draw bounding box
-                    cv2.rectangle(
-                        frame,
-                        (x1, y1),
-                        (x2, y2),
-                        (0, 255, 0),
-                        2
-                    )
-
-                    # Display ID and confidence
-                    if track_id is not None:
-
-                        label = (
-                            f"ID: {track_id} "
-                            f"Conf: {confidence:.2f}"
-                        )
-
-                        tracked_people.append({
-                            "track_id": track_id,
-                            "confidence": round(
-                                confidence, 3
-                            ),
-                            "box": [
-                                x1, y1, x2, y2
-                            ]
-                        })
-
-                    else:
-
-                        label = (
-                            f"Person {confidence:.2f}"
-                        )
-
-                        tracked_people.append({
-                            "track_id": None,
-                            "confidence": round(
-                                confidence, 3
-                            ),
-                            "box": [
-                                x1, y1, x2, y2
-                            ]
-                        })
-
-                    cv2.putText(
-                        frame,
-                        label,
-                        (x1, max(y1 - 10, 20)),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.55,
-                        (0, 255, 0),
-                        2
-                    )
-
-            # ------------------------------------------
-            # CALCULATE CROWD LEVEL
-            # ------------------------------------------
-
-            crowd_level = get_crowd_level(
-                person_count
-            )
-
-            # ------------------------------------------
-            # DISPLAY COUNT
-            # ------------------------------------------
+            # DISPLAY ZONE NAME
 
             cv2.putText(
-                frame,
-                f"People Detected: {person_count}",
+
+                annotated_frame,
+
+                f"Zone: {ZONE_NAME}",
+
                 (20, 40),
+
                 cv2.FONT_HERSHEY_SIMPLEX,
-                0.9,
-                (255, 255, 255),
+
+                1,
+
+                (0, 255, 0),
+
                 2
             )
+
+            # DISPLAY PEOPLE COUNT
 
             cv2.putText(
-                frame,
-                f"Crowd Level: {crowd_level}",
+
+                annotated_frame,
+
+                f"People: {people_count} | Crowd: {crowd_level}",
+
                 (20, 80),
+
                 cv2.FONT_HERSHEY_SIMPLEX,
-                0.9,
+
+                0.8,
+
                 (0, 255, 255),
+
                 2
             )
 
-            # ------------------------------------------
-            # UPDATE SHARED DATA
-            # ------------------------------------------
+            # UPDATE LIVE DATA
 
             with lock:
 
-                crowd_data["people_count"] = (
-                    person_count
-                )
+                latest_frame = annotated_frame
 
-                crowd_data["crowd_level"] = (
-                    crowd_level
-                )
+                crowd_data.update({
 
-                crowd_data["tracked_people"] = (
-                    tracked_people
-                )
+                    "zone": ZONE_NAME,
 
-                crowd_data["last_updated"] = (
-                    time.strftime(
-                        "%Y-%m-%d %H:%M:%S"
-                    )
-                )
+                    "people_count": people_count,
 
-                crowd_data["error"] = None
+                    "crowd_level": crowd_level,
 
-                latest_frame = frame.copy()
+                    "status": "RUNNING"
 
-            # ------------------------------------------
-            # SHOW CAMERA WINDOW
-            # ------------------------------------------
-
-            cv2.imshow(
-                WINDOW_NAME,
-                frame
-            )
-
-            # Press Q to stop camera
-            if cv2.waitKey(1) & 0xFF == ord("q"):
-
-                stop_event.set()
-
-                break
+                })
 
     except Exception as error:
 
         with lock:
 
-            crowd_data["error"] = str(error)
-            crowd_data["camera_status"] = "ERROR"
+            crowd_data["status"] = "ERROR"
 
-        print("Camera error:", error)
+            crowd_data["error"] = str(error)
 
     finally:
+
+        running = False
 
         if camera is not None:
 
@@ -362,129 +210,188 @@ def camera_worker():
 
             camera = None
 
-        cv2.destroyAllWindows()
-
         with lock:
 
-            if crowd_data["camera_status"] != "ERROR":
+            if crowd_data["status"] not in (
 
-                crowd_data["camera_status"] = "STOPPED"
+                "CAMERA_ERROR",
 
-        print("Camera stopped.")
+                "ERROR"
+
+            ):
+
+                crowd_data["status"] = "STOPPED"
 
 
-# ==================================================
-# 7. START CAMERA
-# ==================================================
+# ---------------- START CAMERA ----------------
 
 def start_camera():
 
-    global camera_thread
+    global camera, running, camera_thread, latest_frame
 
-    if (
-        camera_thread is not None
-        and camera_thread.is_alive()
-    ):
+    if running:
+
+        return get_crowd_data()
+
+    if camera_thread is not None and camera_thread.is_alive():
 
         return {
-            "message": "Camera is already running",
-            "camera_status": "RUNNING"
+
+            **get_crowd_data(),
+
+            "message": "Camera worker is still shutting down. Try again shortly."
+
         }
 
-    stop_event.clear()
+    # RELEASE OLD CAMERA
+
+    if camera is not None:
+
+        camera.release()
+
+        camera = None
+
+    # TRY AVAILABLE CAMERA INDEXES
+
+    new_camera = None
+
+    for index in CAMERA_INDEXES:
+
+        test_camera = cv2.VideoCapture(
+            index,
+            cv2.CAP_DSHOW
+        )
+
+        if not test_camera.isOpened():
+
+            test_camera.release()
+
+            test_camera = cv2.VideoCapture(index)
+
+        if test_camera.isOpened():
+
+            success, test_frame = test_camera.read()
+
+            if success and test_frame is not None:
+
+                new_camera = test_camera
+
+                break
+
+        test_camera.release()
+
+    # CAMERA ERROR
+
+    if new_camera is None:
+
+        with lock:
+
+            crowd_data.update({
+
+                "zone": ZONE_NAME,
+
+                "people_count": 0,
+
+                "crowd_level": "LOW",
+
+                "status": "CAMERA_ERROR",
+
+                "error": "Unable to open a working camera. Check camera permissions."
+
+            })
+
+        return get_crowd_data()
+
+    # CAMERA SETTINGS
+
+    new_camera.set(
+        cv2.CAP_PROP_FRAME_WIDTH,
+        1280
+    )
+
+    new_camera.set(
+        cv2.CAP_PROP_FRAME_HEIGHT,
+        720
+    )
+
+    camera = new_camera
+
+    # RESET LIVE DATA
 
     with lock:
 
-        crowd_data["camera_status"] = "STARTING"
-        crowd_data["error"] = None
+        latest_frame = None
+
+        crowd_data.clear()
+
+        crowd_data.update({
+
+            "zone": ZONE_NAME,
+
+            "people_count": 0,
+
+            "crowd_level": "LOW",
+
+            "status": "STARTING"
+
+        })
+
+    # START DETECTION THREAD
+
+    running = True
 
     camera_thread = threading.Thread(
+
         target=camera_worker,
+
         daemon=True
+
     )
 
     camera_thread.start()
 
-    return {
-        "message": "Camera starting",
-        "camera_status": "STARTING"
-    }
+    return get_crowd_data()
 
 
-# ==================================================
-# 8. STOP CAMERA
-# ==================================================
+# ---------------- STOP CAMERA ----------------
 
 def stop_camera():
 
-    global camera_thread
+    global running
 
-    stop_event.set()
-
-    if (
-        camera_thread is not None
-        and camera_thread.is_alive()
-    ):
-
-        camera_thread.join(timeout=5)
+    running = False
 
     with lock:
 
-        return {
-            "message": "Camera stop requested",
-            "camera_status": (
-                crowd_data["camera_status"]
-            )
-        }
+        if crowd_data["status"] not in (
+
+            "CAMERA_ERROR",
+
+            "ERROR"
+
+        ):
+
+            crowd_data["status"] = "STOPPED"
+
+    return get_crowd_data()
 
 
-# ==================================================
-# 9. GET CROWD DATA
-# ==================================================
+# ---------------- GET CROWD DATA ----------------
 
 def get_crowd_data():
 
     with lock:
 
-        return {
-            "camera_status": (
-                crowd_data["camera_status"]
-            ),
-
-            "people_count": (
-                crowd_data["people_count"]
-            ),
-
-            "crowd_level": (
-                crowd_data["crowd_level"]
-            ),
-
-            "tracked_people": [
-                person.copy()
-                for person in crowd_data[
-                    "tracked_people"
-                ]
-            ],
-
-            "last_updated": (
-                crowd_data["last_updated"]
-            ),
-
-            "error": (
-                crowd_data["error"]
-            )
-        }
+        return crowd_data.copy()
 
 
-# ==================================================
-# 10. GET LATEST CAMERA FRAME
-# ==================================================
+# ---------------- GET LIVE CAMERA FRAME ----------------
 
 def get_camera_frame():
 
     with lock:
 
         if latest_frame is None:
-            return None
 
+            return None
         return latest_frame.copy()

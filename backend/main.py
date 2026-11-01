@@ -1,101 +1,92 @@
+import time
+import cv2
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-import cv2
-import time
 
-from camera_service import (
-    start_camera,
-    stop_camera,
-    get_crowd_data,
-    get_camera_frame
-)
+import camera_service
+
+
+# ---------------- FASTAPI APP ----------------
 
 app = FastAPI(
     title="AI Crowd Monitoring System",
-    description="AI-based people detection and crowd monitoring",
-    version="1.0.0"
+    version="0.2.1"
 )
 
-# Allow frontend connections
+
+# ---------------- CORS SETTINGS ----------------
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=False,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]
 )
 
 
-# =====================================
-# HOME
-# =====================================
+# ---------------- HOME ROUTE ----------------
 
 @app.get("/")
 def home():
     return {
         "message": "AI Crowd Monitoring System",
-        "status": "running"
+        "status": "running",
+        "zone": "SAMADHI MANDIR"
     }
 
 
-# =====================================
-# START CAMERA
-# =====================================
+# ---------------- START CAMERA ----------------
 
 @app.post("/api/camera/start")
-def start_camera_endpoint():
-    return start_camera()
+def start_detection():
+    return camera_service.start_camera()
 
 
-# =====================================
-# STOP CAMERA
-# =====================================
+# ---------------- STOP CAMERA ----------------
 
 @app.post("/api/camera/stop")
-def stop_camera_endpoint():
-    return stop_camera()
+def stop_detection():
+    return camera_service.stop_camera()
 
 
-# =====================================
-# CROWD INFORMATION
-# =====================================
-
-@app.get("/api/crowd")
-def crowd_endpoint():
-    return get_crowd_data()
-
-
-# =====================================
-# CAMERA STATUS
-# =====================================
+# ---------------- CAMERA STATUS ----------------
 
 @app.get("/api/camera/status")
-def camera_status_endpoint():
-    data = get_crowd_data()
-
-    return {
-        "camera_status": data["camera_status"],
-        "error": data["error"]
-    }
+def camera_status():
+    return camera_service.get_crowd_data()
 
 
-# =====================================
-# LIVE CAMERA STREAM
-# =====================================
+# ---------------- CROWD DATA ----------------
 
-def generate_camera_stream():
+@app.get("/api/crowd")
+def crowd_data():
+    return camera_service.get_crowd_data()
+
+
+# ---------------- LIVE CAMERA FRAMES ----------------
+
+def generate_frames():
+
     while True:
-        frame = get_camera_frame()
+
+        frame = camera_service.get_camera_frame()
 
         if frame is None:
+
+            status = camera_service.get_crowd_data()["status"]
+
+            if status in ("STOPPED", "CAMERA_ERROR", "ERROR"):
+                break
+
             time.sleep(0.1)
             continue
 
         success, buffer = cv2.imencode(".jpg", frame)
 
         if not success:
-            time.sleep(0.05)
             continue
 
         yield (
@@ -105,12 +96,13 @@ def generate_camera_stream():
             + b"\r\n"
         )
 
-        time.sleep(0.03)
 
+# ---------------- CAMERA STREAM ROUTE ----------------
 
 @app.get("/api/camera/stream")
-def camera_stream_endpoint():
+def camera_stream():
+
     return StreamingResponse(
-        generate_camera_stream(),
+        generate_frames(),
         media_type="multipart/x-mixed-replace; boundary=frame"
     )
