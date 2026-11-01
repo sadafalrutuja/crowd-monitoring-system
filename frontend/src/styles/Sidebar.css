@@ -1,196 +1,454 @@
+css
+/* =====================================
+   SIDEBAR - SAI BABA CROWD DETECTOR
+===================================== */
+css
+/* =====================================
+   SIDEBAR MAIN CONTAINER
+===================================== */
+
+
+css
+/* FIX: Remove extra gap between sidebar and main content */
+
 .sidebar {
-  width: 260px;
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  width: 280px !important;
+  min-width: 280px !important;
+  max-width: 280px !important;
   height: 100vh;
+  box-sizing: border-box;
+  z-index: 1000;
+}
+
+.main-content {
+  margin-left: 280px !important;
+  width: calc(100% - 280px) !important;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* Remove extra spacing from the page wrapper */
+.app-layout,
+.layout,
+.dashboard-layout {
+  gap: 0 !important;
+  column-gap: 0 !important;
+}
+
+/* Keep page content aligned */
+.main-content > * {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+
+
+
+.sidebar {
   position: fixed;
   top: 0;
   left: 0;
-  z-index: 100;
+  width: 280px;
+  height: 100vh;
 
   display: flex;
   flex-direction: column;
 
-  padding: 25px 17px 18px;
+  padding: 28px 20px 18px;
 
   background: linear-gradient(
     180deg,
-    #fff6dc 0%,
-    #fffaf0 100%
+    #ffffff 0%,
+    #fffdf7 55%,
+    #fff8e5 100%
   );
 
-  border-right: 1px solid #f0e3cc;
+  border-right: 1px solid #f0e4c3;
+
+  box-shadow: 5px 0 25px rgba(111, 82, 16, 0.06);
+
+  box-sizing: border-box;
   overflow-y: auto;
+  overflow-x: hidden;
+
+  z-index: 1000;
+
+  font-family: Arial, Helvetica, sans-serif;
 }
+
+/* SCROLLBAR */
+
+.sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: #e7d49b;
+  border-radius: 10px;
+}
+
+/* =====================================
+   BRAND
+===================================== */
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 5px 7px 28px;
+  gap: 13px;
+
+  padding: 0 5px 27px;
+
+  border-bottom: 1px solid #f1e7ce;
 }
 
 .brand-logo {
-  width: 48px;
-  height: 48px;
+  width: 53px;
+  height: 53px;
+
   flex-shrink: 0;
 
   display: flex;
   align-items: center;
   justify-content: center;
 
-  border-radius: 15px;
-  background: linear-gradient(135deg, #e7bb52, #b7791f);
+  background: linear-gradient(145deg, #ffdc75, #e9a900);
 
-  color: white;
-  font-size: 27px;
+  border: 3px solid #fff0be;
+  border-radius: 50%;
 
-  box-shadow: 0 6px 16px rgba(183, 121, 31, 0.2);
+  box-shadow:
+    0 5px 12px rgba(190, 135, 0, 0.22),
+    inset 0 2px 4px rgba(255, 255, 255, 0.7);
+
+  overflow: hidden;
 }
 
-.brand h2 {
-  color: #624019;
-  font-size: 19px;
+.brand-logo img {
+  width: 100%;
+  height: 100%;
+
+  object-fit: cover;
+
+  border-radius: 50%;
+}
+
+.brand-text {
+  min-width: 0;
+}
+
+.brand-text h2 {
+  margin: 0;
+
+  color: #3b2a08;
+
+  font-size: 21px;
   font-weight: 800;
+  letter-spacing: -0.5px;
 }
 
-.brand p {
-  margin-top: 4px;
-  color: #9b886d;
-  font-size: 10px;
+.brand-text p {
+  margin: 5px 0 0;
+
+  color: #9a7a32;
+
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
 }
+
+/* =====================================
+   MENU LABEL
+===================================== */
 
 .sidebar-label {
-  padding: 0 12px;
-  margin-bottom: 13px;
+  margin: 29px 0 13px 10px;
 
-  color: #b4a087;
+  color: #a28d5c;
+
   font-size: 10px;
   font-weight: 800;
-  letter-spacing: 1.3px;
+  letter-spacing: 1.7px;
 }
+
+/* =====================================
+   NAVIGATION
+===================================== */
 
 .sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 8px;
 }
 
 .nav-item {
+  position: relative;
+
   display: flex;
   align-items: center;
-  gap: 13px;
+  gap: 14px;
 
-  padding: 13px 14px;
+  min-height: 49px;
+  padding: 0 15px;
 
-  border-radius: 12px;
+  color: #665a42;
 
-  color: #79674e;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
 
-  transition: all 0.2s ease;
-}
+  text-decoration: none;
 
-.nav-item span {
-  width: 24px;
-  flex-shrink: 0;
+  border: 1px solid transparent;
+  border-radius: 12px;
 
-  display: flex;
-  justify-content: center;
+  box-sizing: border-box;
 
-  font-size: 19px;
+  transition:
+    background 0.25s ease,
+    color 0.25s ease,
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
 }
 
 .nav-item:hover {
-  background: #fff0c9;
-  color: #8b5d17;
+  color: #8a5b00;
+
+  background: #fff5d7;
+
+  transform: translateX(3px);
 }
 
 .nav-item.active {
-  background: linear-gradient(135deg, #d9a83e, #b7791f);
-  color: white;
-  box-shadow: 0 7px 16px rgba(183, 121, 31, 0.2);
+  color: #ffffff;
+
+  background: linear-gradient(
+    135deg,
+    #f5c84c 0%,
+    #e6a800 100%
+  );
+
+  border-color: #edba24;
+
+  box-shadow:
+    0 6px 15px rgba(211, 155, 0, 0.23),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+
+  font-weight: 700;
 }
+
+.nav-icon {
+  width: 25px;
+  height: 25px;
+
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 21px;
+  line-height: 1;
+}
+
+.nav-item.active .nav-icon {
+  color: #ffffff;
+}
+
+/* =====================================
+   BOTTOM SECTION
+===================================== */
 
 .sidebar-bottom {
   margin-top: auto;
-  padding-top: 25px;
+  padding-top: 30px;
 }
+
+/* TEMPLE CARD */
 
 .sidebar-temple-card {
-  padding: 22px 12px;
-  border: 1px solid #efdfb7;
-  border-radius: 17px;
+  padding: 20px 12px;
 
-  background: linear-gradient(145deg, #ffedbd, #fff8e7);
   text-align: center;
+
+  background: linear-gradient(
+    145deg,
+    #fff8e4 0%,
+    #ffefbd 100%
+  );
+
+  border: 1px solid #f1dda0;
+  border-radius: 16px;
+
+  box-shadow:
+    0 5px 15px rgba(163, 120, 15, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
-.sidebar-temple-card > span {
-  font-size: 30px;
+.temple-card-icon {
+  width: 42px;
+  height: 42px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin: 0 auto 10px;
+
+  background: #ffffff;
+
+  border: 1px solid #f2dfaa;
+  border-radius: 50%;
+
+  font-size: 22px;
+
+  box-shadow: 0 4px 10px rgba(150, 110, 0, 0.08);
 }
 
 .sidebar-temple-card h3 {
-  margin: 8px 0 5px;
-  color: #805313;
-  font-size: 14px;
+  margin: 0;
+
+  color: #75500b;
+
+  font-size: 16px;
+  font-weight: 800;
 }
 
 .sidebar-temple-card p {
-  color: #9d8865;
-  font-size: 10px;
-  line-height: 1.7;
+  margin: 7px 0 0;
+
+  color: #9a7b3e;
+
+  font-size: 11px;
+  line-height: 1.5;
 }
+
+/* =====================================
+   FOOTER
+===================================== */
 
 .sidebar-footer {
   display: flex;
   align-items: center;
-  gap: 9px;
+  justify-content: center;
+  gap: 8px;
 
-  margin: 20px 4px 0;
+  margin: 20px 0 0;
+  padding-top: 16px;
 
-  color: #a39177;
+  border-top: 1px solid #f1e7ce;
+
+  color: #9b8b68;
+
   font-size: 10px;
+  font-weight: 600;
+
+  text-align: center;
 }
 
 .footer-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
+
   flex-shrink: 0;
+
+  background: #36b37e;
   border-radius: 50%;
-  background: #36a567;
+
+  box-shadow: 0 0 7px rgba(54, 179, 126, 0.4);
 }
+
+/* =====================================
+   MAIN CONTENT POSITION
+===================================== */
+
+.main-content {
+  margin-left: 280px;
+
+  width: calc(100% - 280px);
+  min-width: 0;
+
+  box-sizing: border-box;
+}
+
+/* =====================================
+   RESPONSIVE DESIGN
+===================================== */
 
 @media (max-width: 900px) {
   .sidebar {
-    width: 100%;
-    height: auto;
-    position: relative;
+    width: 240px;
+    padding: 22px 15px 15px;
+  }
 
-    padding: 12px;
+  .brand-logo {
+    width: 45px;
+    height: 45px;
+  }
 
-    border-right: none;
-    border-bottom: 1px solid #f0e3cc;
-    overflow: visible;
+  .brand-text h2 {
+    font-size: 18px;
+  }
+
+  .brand-text p {
+    font-size: 10px;
+  }
+
+  .nav-item {
+    min-height: 46px;
+    padding: 0 12px;
+    font-size: 13px;
+  }
+
+  .main-content {
+    margin-left: 240px;
+    width: calc(100% - 240px);
+  }
+}
+
+@media (max-width: 600px) {
+  .sidebar {
+    width: 72px;
+    padding: 20px 8px 12px;
   }
 
   .brand {
-    padding: 5px 7px 15px;
+    justify-content: center;
+    padding: 0 0 20px;
   }
 
+  .brand-logo {
+    width: 44px;
+    height: 44px;
+  }
+
+  .brand-text,
   .sidebar-label,
+  .nav-item > span:not(.nav-icon),
   .sidebar-bottom {
     display: none;
   }
 
   .sidebar-nav {
-    flex-direction: row;
-    gap: 7px;
-    overflow-x: auto;
-    padding-bottom: 5px;
+    margin-top: 20px;
+    gap: 10px;
   }
 
   .nav-item {
-    flex-shrink: 0;
-    padding: 10px 12px;
+    justify-content: center;
+    padding: 0;
+    min-height: 45px;
+  }
+
+  .nav-icon {
+    font-size: 22px;
+  }
+
+  .main-content {
+    margin-left: 72px;
+    width: calc(100% - 72px);
   }
 }
+

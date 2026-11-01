@@ -1,6 +1,134 @@
 .topbar {
   width: 100%;
   min-height: 78px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 15px 34px;
+  background: rgba(255, 255, 255, 0.96);
+  border-bottom: 1px solid #f0e6d7;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(12px);
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.breadcrumb span {
+  color: #a39177;
+}
+
+.breadcrumb strong {
+  color: #65431e;
+  font-weight: 700;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.demo-pill {
+  padding: 7px 12px;
+  border: 1px solid #f1dfb7;
+  border-radius: 25px;
+  background: #fff0cc;
+  color: #94620e;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.7px;
+}
+
+.user-avatar {
+  width: 41px;
+  height: 41px;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #edc35d, #b7791f);
+  color: white;
+  font-size: 22px;
+}
+
+/* SIGN OUT BUTTON - ADDED */
+.topbar-signout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid #f0d5ce;
+  border-radius: 10px;
+  background: #fff0ed;
+  color: #bd392d;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.signout-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.topbar-signout:hover {
+  background: #c0392b;
+  border-color: #c0392b;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 600px) {
+  .topbar {
+    min-height: 65px;
+    padding: 12px 15px;
+  }
+
+  .breadcrumb {
+    gap: 7px;
+    font-size: 10px;
+  }
+
+  .topbar-right {
+    gap: 8px;
+  }
+
+  .demo-pill {
+    display: none;
+  }
+
+  .topbar-signout {
+    gap: 5px;
+    padding: 9px 10px;
+    font-size: 11px;
+  }
+
+  .signout-icon {
+    font-size: 16px;
+  }
+
+  .user-avatar {
+    width: 35px;
+    height: 35px;
+    font-size: 19px;
+  }
+/* .topbar {
+  width: 100%;
+  min-height: 78px;
 
   display: flex;
   align-items: center;
@@ -87,4 +215,5 @@
   .demo-pill {
     display: none;
   }
+}*/
 }
